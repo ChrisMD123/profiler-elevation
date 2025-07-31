@@ -84,10 +84,11 @@ def main():
     latest_columns = extract_latest_column(image)
     marine_layer_depth = detect_marine_layer_depth(latest_columns, detection_max_ft=3500)
 
-    if marine_layer_depth is not None:
-        print(f"Estimated marine layer depth: {marine_layer_depth} feet")
-    else:
-        print("Unable to detect marine layer depth.")
+#    Old output
+#    if marine_layer_depth is not None:
+#        print(f"Estimated marine layer depth: {marine_layer_depth} feet")
+#    else:
+#        print("Unable to detect marine layer depth.")
 
 if __name__ == "__main__":
     main()
