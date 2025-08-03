@@ -31,7 +31,10 @@ def classify_color(rgb):
     else:
         return "other"
 
-def detect_marine_layer_depth(rgb_columns, base_alt_ft=0, top_alt_ft=5000, detection_max_ft=3500, show=False):
+def detect_marine_layer_depth(
+    rgb_columns, base_alt_ft=0, top_alt_ft=5000, detection_max_ft=3500,
+    show=True, required_nonmarine=3
+):
     height = rgb_columns.shape[0]
     altitudes = np.linspace(top_alt_ft, base_alt_ft, height)
     avg_column = rgb_columns.mean(axis=1).astype(int)
@@ -49,7 +52,8 @@ def detect_marine_layer_depth(rgb_columns, base_alt_ft=0, top_alt_ft=5000, detec
 
     print("\n--- RGB Classification (0–3500 ft) ---")
     in_marine = False
-    marine_start_index = None
+    marine_top_candidate_index = None
+    nonmarine_streak = 0
 
     for i in range(height - 1, -1, -1):  # bottom (surface) to top
         alt = int(altitudes[i])
@@ -61,18 +65,19 @@ def detect_marine_layer_depth(rgb_columns, base_alt_ft=0, top_alt_ft=5000, detec
         print(f"{alt:5d} ft: {tuple(rgb)} => {label}")
 
         if label == "marine":
-            if not in_marine:
-                in_marine = True
-                marine_start_index = i
+            in_marine = True
+            nonmarine_streak = 0  # reset counter
         elif in_marine:
-            # First non-marine pixel after marine zone
-            transition_alt = int(altitudes[i + 1])
-            print(f"\n✅ Detected marine layer top at {transition_alt} ft")
-            return transition_alt
+            nonmarine_streak += 1
+            if nonmarine_streak >= required_nonmarine:
+                # Confirmed end of marine layer
+                transition_alt = int(altitudes[i + required_nonmarine])
+                print(f"\n✅ Detected marine layer top at {transition_alt} ft")
+                return transition_alt
 
-    if in_marine and marine_start_index is not None:
-        fallback_alt = int(altitudes[marine_start_index])
-        print(f"\n✅ Fallback: marine layer top at {fallback_alt} ft (no transition found)")
+    if in_marine:
+        fallback_alt = int(altitudes[i + 1]) if i + 1 < height else int(altitudes[-1])
+        print(f"\n✅ Fallback: marine layer top at {fallback_alt} ft (no confirmed transition)")
         return fallback_alt
 
     print(f"\n⚠️ No marine layer detected below {detection_max_ft} ft.")
@@ -84,11 +89,10 @@ def main():
     latest_columns = extract_latest_column(image)
     marine_layer_depth = detect_marine_layer_depth(latest_columns, detection_max_ft=3500)
 
-#    Old output
-#    if marine_layer_depth is not None:
-#        print(f"Estimated marine layer depth: {marine_layer_depth} feet")
-#    else:
-#        print("Unable to detect marine layer depth.")
+ #   if marine_layer_depth is not None:
+ #       print(f"Estimated marine layer depth: {marine_layer_depth} feet")
+ #   else:
+ #       print("Unable to detect marine layer depth.")
 
 if __name__ == "__main__":
     main()
